@@ -2,12 +2,12 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Тактическая карта Хвойного</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; background: #121212; }
+        html, body { margin: 0; padding: 0; height: 100%; background: #121212; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #1a1a1a; }
         
         .custom-marker {
@@ -20,21 +20,25 @@
         .marker-base-red { background: #ff3333; border-color: #ff3333; }
         .marker-a, .marker-b, .marker-c { background: #f0f0f0; color: black; }
 
-        /* Панель управления */
+        /* Панель управления лидера */
         #controls {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
-            background: rgba(30, 30, 30, 0.9); padding: 15px; border-radius: 8px;
+            background: rgba(30, 30, 30, 0.95); padding: 15px; border-radius: 8px;
             color: white; font-family: sans-serif; border: 1px solid #444;
-            display: none; /* Скрыто по умолчанию */
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-        #controls button { padding: 5px 10px; margin-top: 5px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px; width: 100%; }
+        #controls button { padding: 8px; margin-top: 10px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px; width: 100%; font-weight: bold; }
+        #controls button:hover { background: #c82333; }
         
         /* Кнопка входа */
         #loginBtn {
             position: absolute; top: 10px; left: 50px; z-index: 1000;
             background: #28a745; color: white; border: none; padding: 10px 15px;
             border-radius: 5px; font-weight: bold; cursor: pointer; font-family: sans-serif;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
+        #loginBtn:hover { background: #218838; }
     </style>
 </head>
 <body>
@@ -44,10 +48,11 @@
 
     <div id="controls">
         <b>Режим Лидера</b>
-        <p style="font-size: 12px; color: #aaa;">Используйте инструменты рисования на карте слева.</p>
+        <p style="font-size: 12px; color: #aaa; margin: 5px 0;">Используйте инструменты рисования на карте слева.</p>
         <button id="clearBtn">Очистить всё</button>
     </div>
 
+    <!-- Подключение библиотек -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -59,18 +64,35 @@
         var imgHeight = 586;
         var bounds = [[0, 0], [imgHeight, imgWidth]];
 
-        var map = L.map('map', { crs: L.CRS.Simple, minZoom: -1, maxZoom: 3 }).fitBounds(bounds);
+        // Отступы для maxBounds (чтобы не было черных полос)
+        var padding = 50; 
+        var maxBounds = [
+            [-padding, -padding], 
+            [imgHeight + padding, imgWidth + padding]
+        ];
+
+        var map = L.map('map', { 
+            crs: L.CRS.Simple, 
+            minZoom: -1, 
+            maxZoom: 3,
+            maxBounds: maxBounds,        // ЗАПРЕТ ПРОКРУТКИ ЗА КРАЯ
+            maxBoundsViscosity: 1.0,     // ЖЕСТКАЯ ГРАНИЦА (карта не выезжает)
+            bounceAtZoomLimits: false
+        }).fitBounds(bounds);
         
+        // Загрузка фоновой картинки
         L.imageOverlay('hvoiny.png', bounds).addTo(map);
 
+        // Функция добавления маркеров
         function addMarker(name, xPercent, yPercent, iconClass, popupText) {
             var x = (xPercent / 100) * imgWidth;
             var y = (yPercent / 100) * imgHeight;
-            var latLng = [imgHeight - y, x];
+            var latLng = [imgHeight - y, x]; // Инверсия Y
             var icon = L.divIcon({ className: 'custom-marker ' + iconClass, html: name, iconSize: [26, 26], iconAnchor: [13, 13] });
             L.marker(latLng, { icon: icon }).addTo(map).bindPopup(popupText);
         }
 
+        // Стандартные точки
         addMarker('⚑', 50, 10, 'marker-base-blue', 'Синяя База');
         addMarker('A', 20, 50, 'marker-a', 'Точка А');
         addMarker('B', 50, 50, 'marker-b', 'Точка B');
@@ -78,7 +100,7 @@
         addMarker('⚐', 50, 89, 'marker-base-red', 'Красная База');
 
 
-        // === 2. НАСТРОЙКА FIREBASE (Уже с твоими ключами) ===
+        // === 2. FIREBASE ===
         var firebaseConfig = {
             apiKey: "AIzaSyAlpgpurJx8dEwBDWpkXSIjUYaUh-r7xNE",
             authDomain: "clanwars-arms.firebaseapp.com",
@@ -94,77 +116,90 @@
         var db = firebase.database();
         var drawingsRef = db.ref('drawings');
 
+        // Слой для рисунков
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
+        // Настройка панели рисования (появится только у лидера)
         var drawControl = new L.Control.Draw({
             edit: { featureGroup: drawnItems },
             draw: {
-                polygon: { shapeOptions: { color: '#ff7800', weight: 3 } },
+                polygon: { shapeOptions: { color: '#ff7800', weight: 3, fillOpacity: 0.3 } },
                 polyline: { shapeOptions: { color: '#00ffff', weight: 4 } },
-                rectangle: { shapeOptions: { color: '#ff0000', weight: 3 } },
+                rectangle: { shapeOptions: { color: '#ff0000', weight: 3, fillOpacity: 0.3 } },
                 circle: false, marker: false, circlemarker: false
             }
         });
 
+
         // === 3. ЛОГИКА РЕЖИМОВ ===
         var isLeader = false;
-        var myDrawings = {};
+        var myDrawings = {}; // Чтобы не дублировать свои же рисунки
 
+        // Вход по коду
         document.getElementById('loginBtn').onclick = function() {
             var code = prompt("Введите секретный код лидера:");
-            if (code === "Хвойный2024") {
+            if (code === "Хвойный2024") { // <--- ТУТ МОЖНО СМЕНИТЬ КОД
                 isLeader = true;
                 this.style.display = 'none';
                 document.getElementById('controls').style.display = 'block';
-                map.addControl(drawControl);
-                alert("Вы вошли как Лидер. Рисуйте!");
+                map.addControl(drawControl); // Включаем инструменты рисования
+                alert("Вы вошли как Лидер. Инструменты рисования слева!");
             } else if (code !== null) {
                 alert("Неверный код!");
             }
         };
 
+        // Очистка всего
         document.getElementById('clearBtn').onclick = function() {
-            if(confirm("Удалить все рисунки у всех?")) {
-                drawingsRef.remove();
+            if(confirm("Удалить все рисунки на карте у ВСЕХ участников?")) {
+                drawingsRef.remove(); // Удаляем всё из базы
             }
         };
 
-        // === 4. СИНХРОНИЗАЦИЯ С БАЗОЙ ===
+
+        // === 4. СИНХРОНИЗАЦИЯ С FIREBASE ===
         
+        // Когда Лидер заканчивает рисовать фигуру
         map.on(L.Draw.Event.CREATED, function (e) {
             var layer = e.layer;
             var id = Date.now().toString(); 
             var geojson = layer.toGeoJSON();
             
+            // Сохраняем в базу
             drawingsRef.child(id).set({
                 type: geojson.geometry.type,
                 coords: geojson.geometry.coordinates,
                 color: layer.options.color || '#ffffff'
             });
             
+            // Рисуем у себя сразу
             drawnItems.addLayer(layer);
         });
 
+        // Слушаем добавление новых фигур (для всех участников)
         drawingsRef.on('child_added', function(snapshot) {
             var data = snapshot.val();
+            
+            // Если мы уже нарисовали это (мы лидер), пропускаем
             if (myDrawings[snapshot.key]) return;
 
             var latlngs = [];
             if (data.type === 'Polygon' || data.type === 'LineString') {
                 var coords = data.type === 'Polygon' ? data.coords[0] : data.coords;
                 coords.forEach(function(coord) {
-                    latlngs.push([coord[1], coord[0]]);
+                    latlngs.push([coord[1], coord[0]]); // Конвертация Y/X
                 });
 
                 if (data.type === 'Polygon') {
-                    L.polygon(latlngs, { color: data.color, weight: 3 }).addTo(drawnItems);
+                    L.polygon(latlngs, { color: data.color, weight: 3, fillOpacity: 0.3 }).addTo(drawnItems);
                 } else {
                     L.polyline(latlngs, { color: data.color, weight: 4 }).addTo(drawnItems);
                 }
             }
         });
 
+        // Слушаем очистку (если лидер удалил всё)
         drawingsRef.on('value', function(snapshot) {
             if (!snapshot.exists()) {
                 drawnItems.clearLayers();
