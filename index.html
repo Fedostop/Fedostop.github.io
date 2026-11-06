@@ -3,206 +3,601 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тактическая карта Хвойного</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <title>SCMAPSLIVE — Тактический Центр</title>
+    <!-- Firebase SDK v8 -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; background: #121212; overflow: hidden; }
-        #map { height: 100vh; width: 100%; background: #1a1a1a; }
-        
-        .custom-marker {
-            background: #333; border: 2px solid #fff; border-radius: 50%;
-            width: 26px; height: 26px; text-align: center; line-height: 26px;
-            color: white; font-weight: bold; font-family: sans-serif;
-            box-shadow: 0 0 10px rgba(0,0,0,0.8); font-size: 14px;
+        :root {
+            --mac-bg: #1e1e1e;
+            --mac-border: rgba(255, 255, 255, 0.15);
+            --mac-text: #f5f5f7;
         }
-        .marker-base-blue { background: #00bfff; border-color: #00bfff; }
-        .marker-base-red { background: #ff3333; border-color: #ff3333; }
-        .marker-a, .marker-b, .marker-c { background: #f0f0f0; color: black; }
 
-        /* Компактная панель управления лидера в правом нижнем углу */
-        #controls {
-            position: absolute; bottom: 20px; right: 10px; z-index: 1000;
-            background: rgba(30, 30, 30, 0.85); padding: 10px; border-radius: 8px;
-            color: white; font-family: sans-serif; border: 1px solid #444;
-            display: none; width: 140px; text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle, #2a2e3d, #090a0f);
+            color: var(--mac-text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
         }
-        #controls b { font-size: 14px; }
-        #controls p { font-size: 10px; color: #aaa; margin: 5px 0; line-height: 1.2; }
-        #controls button { padding: 6px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px; width: 100%; font-weight: bold; font-size: 12px; margin-top: 5px; }
+
+        /* Верхняя панель macOS */
+        .mac-menubar {
+            background: rgba(30, 30, 30, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            z-index: 1000;
+        }
+        .menu-left { display: flex; gap: 16px; font-weight: 600; }
+        .menu-right { color: #27c93f; font-size: 12px; font-weight: bold; }
+
+        /* Окно macOS */
+        .mac-window {
+            background: var(--mac-bg);
+            border: 1px solid var(--mac-border);
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            width: 96vw;
+            max-width: 1400px;
+            height: calc(100vh - 145px);
+            margin: 15px auto 0 auto;
+            overflow: hidden;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Полностью переработанный адаптивный заголовок */
+        .mac-titlebar {
+            background: #262626;
+            min-height: 44px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 14px;
+            box-sizing: border-box;
+            gap: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .titlebar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .mac-dots { display: flex; gap: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27c93f; }
         
-        /* Кнопка входа по центру сверху */
-        #loginBtn {
-            position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;
-            background: #28a745; color: white; border: none; padding: 10px 15px;
-            border-radius: 5px; font-weight: bold; cursor: pointer; font-family: sans-serif;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5); white-space: nowrap;
+        .window-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #aaa;
+            letter-spacing: 0.5px;
         }
-        #loginBtn:hover { background: #218838; }
+
+        .auth-zone {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .mac-input {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            color: #fff;
+            padding: 5px 10px;
+            font-size: 12px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .mac-input:focus {
+            border-color: #ffa500;
+        }
+        .status-badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(0, 170, 255, 0.15);
+            color: #00aaff;
+            border: 1px solid rgba(0, 170, 255, 0.3);
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* Контентная зона */
+        .window-content {
+            flex: 1;
+            background: #111411;
+            position: relative;
+            overflow: hidden;
+        }
+        .map-viewport {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+        #mapCanvas {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+
+        /* Нижний Док macOS */
+        .mac-dock {
+            background: rgba(28, 28, 30, 0.6);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 10px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            width: calc(100% - 32px);
+            max-width: fit-content;
+            box-sizing: border-box;
+        }
+
+        .dock-item {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--mac-text);
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .dock-item:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: translateY(-2px);
+        }
+        .dock-color {
+            width: 30px;
+            height: 30px;
+            border: none;
+            padding: 0;
+            background: none;
+            cursor: pointer;
+        }
+        .dock-slider { width: 70px; cursor: pointer; }
+        
+        #leaderMapUrl {
+            width: 200px;
+            display: none;
+        }
+
+        /* Дополнительное медиа-выражение для супер-компактных экранов */
+        @media (max-width: 480px) {
+            .mac-titlebar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                padding: 8px;
+            }
+            .auth-zone {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .mac-window {
+                height: calc(100vh - 185px);
+            }
+        }
     </style>
 </head>
 <body>
-    <div id="map"></div>
-    
-    <button id="loginBtn">Войти как Лидер</button>
 
-    <div id="controls">
-        <b>Режим Лидера</b>
-        <p>Рисуйте инструментами слева</p>
-        <button id="clearBtn">Очистить всё</button>
+    <div class="mac-menubar">
+        <div class="menu-left">
+            <span></span>
+            <span>SCMAPSLIVE</span>
+        </div>
+        <div class="menu-right" id="onlineIndicator">Сеть: Подключение...</div>
     </div>
 
-    <!-- Подключение библиотек -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <div class="mac-window">
+        <div class="mac-titlebar">
+            <div class="titlebar-left">
+                <div class="mac-dots">
+                    <div class="dot dot-red"></div>
+                    <div class="dot dot-yellow"></div>
+                    <div class="dot dot-green"></div>
+                </div>
+                <div class="window-title">SCMAPSLIVE</div>
+            </div>
+            
+            <div class="auth-zone">
+                <span id="roleLabel" class="status-badge">Зритель 👁️</span>
+                <input type="password" id="leaderPass" class="mac-input" placeholder="Пароль Лидера" style="width: 110px;">
+                <button id="loginBtn" class="dock-item" style="padding: 5px 10px;">Войти</button>
+            </div>
+        </div>
 
+        <div class="window-content">
+            <div class="map-viewport" id="viewport">
+                <canvas id="mapCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="mac-dock">
+        <input type="text" id="leaderMapUrl" class="mac-input" placeholder="Прямая ссылка на карту...">
+        <button id="modeBtn" class="dock-item">✏️ Рисовать</button>
+        <input type="color" id="colorPicker" class="dock-color" value="#ff0000">
+        <input type="range" id="brushSize" class="dock-slider" min="2" max="15" value="5">
+        <button id="eraserBtn" class="dock-item">🧹 Ластик</button>
+        <button id="clearBtn" class="dock-item" style="background:#702222; border-color:#8c3030;">💥 Сброс</button>
+        <button id="saveBtn" class="dock-item" style="background:#227035; border-color:#308c43;">💾 Скачать</button>
+    </div>
     <script>
-        // === 1. НАСТРОЙКА КАРТЫ ===
-        var imgWidth = 784;
-        var imgHeight = 586;
-        
-        // Границы карты
-        var bounds = [[0, 0], [imgHeight, imgWidth]];
-
-        // Ограничитель прокрутки. 
-        // Делаем его чуть больше картинки, чтобы можно было зумить не прилипая к краям.
-        var maxBounds = [
-            [-100, -100], 
-            [imgHeight + 100, imgWidth + 100]
-        ];
-
-        var map = L.map('map', { 
-            crs: L.CRS.Simple, 
-            minZoom: -1, 
-            maxZoom: 3,
-            maxBounds: maxBounds,        
-            maxBoundsViscosity: 0.8,     
-            zoomControl: false // Убираем стандартный зум, чтобы не мешал
-        }).fitBounds(bounds);
-        
-        // Добавляем зум в правый нижний угол (под панель лидера)
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-        // Загрузка фоновой картинки
-        L.imageOverlay('hvoiny.png', bounds).addTo(map);
-
-        // Функция добавления маркеров
-        function addMarker(name, xPercent, yPercent, iconClass, popupText) {
-            var x = (xPercent / 100) * imgWidth;
-            var y = (yPercent / 100) * imgHeight;
-            var latLng = [imgHeight - y, x]; 
-            var icon = L.divIcon({ className: 'custom-marker ' + iconClass, html: name, iconSize: [26, 26], iconAnchor: [13, 13] });
-            L.marker(latLng, { icon: icon }).addTo(map).bindPopup(popupText);
-        }
-
-        // Стандартные точки
-        addMarker('⚑', 50, 10, 'marker-base-blue', 'Синяя База');
-        addMarker('A', 20, 50, 'marker-a', 'Точка А');
-        addMarker('B', 50, 50, 'marker-b', 'Точка B');
-        addMarker('C', 81, 50, 'marker-c', 'Точка C');
-        addMarker('⚐', 50, 89, 'marker-base-red', 'Красная База');
-
-
-        // === 2. FIREBASE ===
-        var firebaseConfig = {
-            apiKey: "AIzaSyAlpgpurJx8dEwBDWpkXSIjUYaUh-r7xNE",
-            authDomain: "clanwars-arms.firebaseapp.com",
-            databaseURL: "https://clanwars-arms-default-rtdb.firebaseio.com/", 
-            projectId: "clanwars-arms",
-            storageBucket: "clanwars-arms.firebasestorage.app",
-            messagingSenderId: "636686968167",
-            appId: "1:636686968167:web:e5cbfe652bd3cb41117bc2",
-            measurementId: "G-76KVGNN87L"
-        };
+        // --- ЗАШИФРОВАННЫЙ БЛОК КОНФИГУРАЦИИ FIREBASE ---
+        const _0x4f12=["\x41\x49\x7a\x61\x53\x79\x41\x6c\x70\x67\x70\x75\x72\x4a\x78\x38\x44\x45\x77\x42\x44\x57\x70\x6a\x58\x53\x49\x6a\x55\x59\x61\x55\x68\x2d\x72\x37\x78\x4e\x45","\x63\x6c\x6a\x6e\x77\x61\x72\x73\x2d\x61\x72\x6d\x73\x2e\x66\x69\x72\x65\x62\x61\x73\x65\x61\x70\x70\x2e\x63\x6f\x6d","\x68\x74\x74\x70\x73\x3a\x2f\x2f\x63\x6c\x61\x6e\x77\x61\x72\x73\x2d\x61\x72\x6d\x73\x2d\x64\x65\x66\x61\x75\x6c\x74\x2d\x72\x74\x64\x62\x2e\x66\x69\x72\x65\x62\x61\x73\x65\x61\x70\x70\x2e\x63\x6f\x6d\x2f","\x63\x6c\x61\x6e\x77\x61\x72\x73\x2d\x61\x72\x6d\x73","\x63\x6c\x61\x6e\x77\x61\x72\x73\x2d\x61\x72\x6d\x73\x2e\x66\x69\x72\x65\x62\x61\x73\x65\x73\x74\x6f\x72\x61\x67\x65\x2e\x61\x70\x70","\x36\x33\x36\x36\x38\x36\x39\x36\x38\x31\x36\x37","\x31\x3a\x36\x33\x36\x36\x38\x36\x39\x36\x38\x31\x36\x37\x3a\x77\x65\x62\x3a\x65\x35\x63\x62\x66\x65\x36\x35\x32\x62\x64\x33\x63\x62\x34\x31\x31\x31\x37\x62\x63","\x47\x2d\x37\x36\x4b\x56\x47\x4e\x4e\x38\x37\x4c"];
+        const firebaseConfig = { apiKey: _0x4f12[0], authDomain: _0x4f12[1], databaseURL: _0x4f12[2], projectId: _0x4f12[3], storageBucket: _0x4f12[4], messagingSenderId: _0x4f12[5], appId: _0x4f12[6], measurementId: _0x4f12[7] };
         
         firebase.initializeApp(firebaseConfig);
-        var db = firebase.database();
-        var drawingsRef = db.ref('drawings');
+        const db = firebase.database();
 
-        var drawnItems = new L.FeatureGroup();
-        map.addLayer(drawnItems);
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const viewport = document.getElementById('viewport');
+        const modeBtn = document.getElementById('modeBtn');
+        const colorPicker = document.getElementById('colorPicker');
+        const brushSize = document.getElementById('brushSize');
+        const eraserBtn = document.getElementById('eraserBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const leaderPass = document.getElementById('leaderPass');
+        const loginBtn = document.getElementById('loginBtn');
+        const roleLabel = document.getElementById('roleLabel');
+        const onlineIndicator = document.getElementById('onlineIndicator');
+        const leaderMapUrl = document.getElementById('leaderMapUrl');
 
-        // Инструменты рисования
-        var drawControl = new L.Control.Draw({
-            position: 'topleft',
-            edit: { featureGroup: drawnItems },
-            draw: {
-                polygon: { shapeOptions: { color: '#ff7800', weight: 3, fillOpacity: 0.3 } },
-                polyline: { shapeOptions: { color: '#00ffff', weight: 4 } },
-                rectangle: { shapeOptions: { color: '#ff0000', weight: 3, fillOpacity: 0.3 } },
-                circle: false, marker: false, circlemarker: false
-            }
-        });
+        let isLeader = false;
+        let currentMapUrl = '';
+        const mapBg = new Image();
+        mapBg.crossOrigin = "anonymous"; 
 
+        let scale = 1; let offsetX = 0; let offsetY = 0;
+        let appMode = 'draw'; let isEraser = false;
+        let isDrawing = false; let isPanning = false;
+        let startX = 0, startY = 0; let lastDrawX = 0, lastDrawY = 0; let touchStartDist = 0;
+        let drawnLines = [];
 
-        // === 3. ЛОГИКА РЕЖИМОВ ===
-        var isLeader = false;
-        var myDrawings = {}; 
-
-        document.getElementById('loginBtn').onclick = function() {
-            var code = prompt("Введите секретный код лидера:");
-            if (code === "Хвойный2024") { // <--- КОД ЛИДЕРА
+        // Авторизация лидера (Проверка обфусцированного случайного пароля)
+        loginBtn.addEventListener('click', () => {
+            const pass = leaderPass.value;
+            // Проверка пароля lidakeldak
+            if (btoa(pass) === "cVg5IXZGMiN6SzckbVAxX3dMOSpiTjQ=") { 
                 isLeader = true;
-                this.style.display = 'none';
-                document.getElementById('controls').style.display = 'block';
-                map.addControl(drawControl);
-            } else if (code !== null) {
-                alert("Неверный код!");
+                roleLabel.textContent = "Лидер 👑";
+                roleLabel.style.background = "rgba(39, 201, 63, 0.2)";
+                roleLabel.style.color = "#27c93f";
+                roleLabel.style.borderColor = "rgba(39, 201, 63, 0.4)";
+                leaderPass.style.display = "none";
+                loginBtn.style.display = "none";
+                leaderMapUrl.style.display = "block"; 
+                onlineIndicator.textContent = "Трансляция SCMAPSLIVE";
+            } else {
+                alert("Неверный тактический ключ доступа!");
             }
-        };
-
-        document.getElementById('clearBtn').onclick = function() {
-            if(confirm("Удалить все рисунки на карте у ВСЕХ участников?")) {
-                drawingsRef.remove(); 
-            }
-        };
-
-
-        // === 4. СИНХРОНИЗАЦИЯ С FIREBASE ===
-        
-        map.on(L.Draw.Event.CREATED, function (e) {
-            var layer = e.layer;
-            var id = Date.now().toString(); 
-            var geojson = layer.toGeoJSON();
-            
-            drawingsRef.child(id).set({
-                type: geojson.geometry.type,
-                coords: geojson.geometry.coordinates,
-                color: layer.options.color || '#ffffff'
-            });
-            
-            drawnItems.addLayer(layer);
         });
 
-        drawingsRef.on('child_added', function(snapshot) {
-            var data = snapshot.val();
-            if (myDrawings[snapshot.key]) return;
+        // Отслеживание статуса сети Firebase
+        db.ref('.info/connected').on('value', (snap) => {
+            if (snap.val() === true) {
+                onlineIndicator.textContent = isLeader ? "Трансляция SCMAPSLIVE" : "Наблюдение SCMAPSLIVE";
+                onlineIndicator.style.color = "#27c93f";
+            } else {
+                onlineIndicator.textContent = "Переподключение...";
+                onlineIndicator.style.color = "#ff5f56";
+            }
+        });
 
-            var latlngs = [];
-            if (data.type === 'Polygon' || data.type === 'LineString') {
-                var coords = data.type === 'Polygon' ? data.coords[0] : data.coords;
-                coords.forEach(function(coord) {
-                    latlngs.push([coord[1], coord[0]]); 
+        // Слушатель динамической ссылки на карту
+        db.ref('dynamic_clan_map_url').on('value', (snapshot) => {
+            const remoteUrl = snapshot.val();
+            if (remoteUrl && remoteUrl !== currentMapUrl) {
+                currentMapUrl = remoteUrl;
+                mapBg.src = remoteUrl;
+                if (!isLeader) leaderMapUrl.value = remoteUrl;
+            }
+        });
+
+        // Отправка ссылки лидером в Firebase
+        leaderMapUrl.addEventListener('change', (e) => {
+            if (!isLeader) return;
+            const newUrl = e.target.value.trim();
+            if (newUrl) {
+                db.ref('dynamic_clan_map_url').set(newUrl);
+                db.ref('clan_canvas_lines').remove();
+            }
+        });
+
+        // Получение векторов рисования в реальном времени
+        db.ref('clan_canvas_lines').on('value', (snapshot) => {
+            const data = snapshot.val();
+            drawnLines = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    drawnLines.push(data[key]);
                 });
+            }
+            redrawAll();
+        });
 
-                if (data.type === 'Polygon') {
-                    L.polygon(latlngs, { color: data.color, weight: 3, fillOpacity: 0.3 }).addTo(drawnItems);
+        // Обработка касания (смартфоны)
+        viewport.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1 && appMode === 'draw') {
+                if (!isLeader) return; 
+                isDrawing = true;
+                const [cx, cy] = getCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+                [lastDrawX, lastDrawY] = [cx, cy];
+            } else if (e.touches.length === 2) {
+                isDrawing = false;
+                isPanning = true;
+                const p1 = e.touches[0];
+                const p2 = e.touches[1];
+                const midX = (p1.clientX + p2.clientX) / 2;
+                const midY = (p1.clientY + p2.clientY) / 2;
+                startX = midX - offsetX;
+                startY = midY - offsetY;
+                touchStartDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+            } else if (appMode === 'pan' && e.touches.length === 1) {
+                isPanning = true;
+                startX = e.touches[0].clientX - offsetX;
+                startY = e.touches[0].clientY - offsetY;
+            }
+        }, { passive: true });
+        viewport.addEventListener('touchmove', (e) => {
+            if (isDrawing && e.touches.length === 1 && isLeader) {
+                const [cx, cy] = getCanvasCoords(e.touches.clientX, e.touches.clientY);
+                
+                const lineData = {
+                    x1: lastDrawX, y1: lastDrawY,
+                    x2: cx, y2: cy,
+                    color: colorPicker.value,
+                    size: parseInt(brushSize.value),
+                    mode: isEraser ? 'erase' : 'draw'
+                };
+                
+                db.ref('clan_canvas_lines').push(lineData);
+                [lastDrawX, lastDrawY] = [cx, cy];
+            } else if (isPanning && e.touches.length === 2) {
+                const p1 = e.touches;
+                const p2 = e.touches;
+                const currentDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+                const midX = (p1.clientX + p2.clientX) / 2;
+                const midY = (p1.clientY + p2.clientY) / 2;
+
+                const factor = currentDist / touchStartDist;
+                touchStartDist = currentDist;
+
+                scale = Math.max(0.1, Math.min(scale * factor, 8));
+                offsetX = midX - startX * factor;
+                offsetY = midY - startY * factor;
+                
+                startX = midX - offsetX;
+                startY = midY - offsetY;
+
+                updateTransform();
+            } else if (isPanning && appMode === 'pan' && e.touches.length === 1) {
+                offsetX = e.touches.clientX - startX;
+                offsetY = e.touches.clientY - startY;
+                updateTransform();
+            }
+        }, { passive: true });
+
+        viewport.addEventListener('touchend', () => {
+            isDrawing = false;
+            isPanning = false;
+        });
+
+        // Мышь (ПК)
+        viewport.addEventListener('mousedown', (e) => {
+            if (appMode === 'draw' && e.button === 0 && isLeader) {
+                isDrawing = true;
+                const [cx, cy] = getCanvasCoords(e.clientX, e.clientY);
+                [lastDrawX, lastDrawY] = [cx, cy];
+            } else if (appMode === 'pan' || e.button === 1 || e.button === 2) {
+                isPanning = true;
+                startX = e.clientX - offsetX;
+                startY = e.clientY - offsetY;
+            }
+        });
+
+        viewport.addEventListener('mousemove', (e) => {
+            if (isDrawing && isLeader) {
+                const [cx, cy] = getCanvasCoords(e.clientX, e.clientY);
+                const lineData = {
+                    x1: lastDrawX, y1: lastDrawY,
+                    x2: cx, y2: cy,
+                    color: colorPicker.value,
+                    size: parseInt(brushSize.value),
+                    mode: isEraser ? 'erase' : 'draw'
+                };
+                db.ref('clan_canvas_lines').push(lineData);
+                [lastDrawX, lastDrawY] = [cx, cy];
+            } else if (isPanning) {
+                offsetX = e.clientX - startX;
+                offsetY = e.clientY - startY;
+                updateTransform();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDrawing = false;
+            isPanning = false;
+        });
+
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = 1.1;
+            const mouseX = e.clientX - viewport.getBoundingClientRect().left;
+            const mouseY = e.clientY - viewport.getBoundingClientRect().top;
+            const canvasMouseX = (mouseX - offsetX) / scale;
+            const canvasMouseY = (mouseY - offsetY) / scale;
+
+            if (e.deltaY < 0) scale = Math.min(scale * zoomFactor, 8);
+            else scale = Math.max(scale / zoomFactor, 0.1);
+
+            offsetX = mouseX - canvasMouseX * scale;
+            offsetY = mouseY - canvasMouseY * scale;
+            updateTransform();
+        }, { passive: false });
+
+        viewport.addEventListener('contextmenu', e => e.preventDefault());
+
+        mapBg.onload = function() {
+            canvas.width = mapBg.naturalWidth || 1024;
+            canvas.height = mapBg.naturalHeight || 1024;
+            resetView();
+            redrawAll();
+        };
+
+        mapBg.onerror = function() {
+            drawFallback();
+        };
+
+        function drawFallback() {
+            canvas.width = 1024;
+            canvas.height = 1024;
+            ctx.fillStyle = '#121612';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = 'rgba(39, 201, 63, 0.12)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=50) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('SCMAPSLIVE: ОЖИДАНИЕ КАРТЫ ОТ ЛИДЕРА...', 512, 512);
+        }
+
+        function redrawAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (mapBg.complete && mapBg.naturalWidth !== 0) {
+                ctx.drawImage(mapBg, 0, 0, canvas.width, canvas.height);
+            } else {
+                drawFallback();
+            }
+
+            drawnLines.forEach(line => {
+                ctx.beginPath();
+                ctx.moveTo(line.x1, line.y1);
+                ctx.lineTo(line.x2, line.y2);
+                if (line.mode === 'erase') {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.arc(line.x2, line.y2, line.size * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                    
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(line.x2, line.y2, line.size * 2, 0, Math.PI * 2);
+                    ctx.clip();
+                    if (mapBg.complete && mapBg.naturalWidth !== 0) ctx.drawImage(mapBg, 0, 0, canvas.width, canvas.height);
+                    else drawFallback();
+                    ctx.restore();
                 } else {
-                    L.polyline(latlngs, { color: data.color, weight: 4 }).addTo(drawnItems);
+                    ctx.strokeStyle = line.color;
+                    ctx.lineWidth = line.size;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.stroke();
                 }
+            });
+        }
+
+        function updateTransform() {
+            canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+        }
+
+        function resetView() {
+            scale = Math.min(viewport.clientWidth / canvas.width, viewport.clientHeight / canvas.height) * 0.95;
+            offsetX = (viewport.clientWidth - canvas.width * scale) / 2;
+            offsetY = (viewport.clientHeight - canvas.height * scale) / 2;
+            updateTransform();
+        }
+
+        function getCanvasCoords(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            return [
+                (clientX - rect.left) / scale,
+                (clientY - rect.top) / scale
+            ];
+        }
+
+        // Кнопки док-панели
+        modeBtn.addEventListener('click', () => {
+            if (appMode === 'draw') {
+                appMode = 'pan';
+                modeBtn.textContent = '🖐️ Движение';
+                modeBtn.style.backgroundColor = '#9e6a14';
+            } else {
+                appMode = 'draw';
+                modeBtn.textContent = '✏️ Рисовать';
+                modeBtn.style.backgroundColor = '#2b4c7e';
             }
         });
 
-        drawingsRef.on('value', function(snapshot) {
-            if (!snapshot.exists()) {
-                drawnItems.clearLayers();
-                myDrawings = {};
+        eraserBtn.addEventListener('click', () => {
+            isEraser = !isEraser;
+            eraserBtn.style.backgroundColor = isEraser ? '#ffbd2e' : 'rgba(255,255,255,0.08)';
+            eraserBtn.style.color = isEraser ? '#000' : '#fff';
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if (!isLeader) {
+                alert("Только Лидер может полностью очищать глобальный холст!");
+                return;
+            }
+            if (confirm('Очистить тактическую разметку на сервере для всех участников?')) {
+                db.ref('clan_canvas_lines').remove();
             }
         });
 
+        saveBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `scmapslive_plan.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+
+        drawFallback();
+        window.addEventListener('resize', resetView);
     </script>
 </body>
 </html>
