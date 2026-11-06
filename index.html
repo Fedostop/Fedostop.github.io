@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SCMAPSLIVE — Тактический Центр</title>
-    <!-- Подключение стабильной версии Firebase SDK v8 -->
+    <!-- Подключение официального SDK Firebase v8 -->
     <script src="https://gstatic.com"></script>
     <script src="https://gstatic.com"></script>
     <style>
@@ -27,7 +27,7 @@
             user-select: none;
         }
 
-        /* Верхняя служебная строка меню macOS */
+        /* Верхняя строка меню macOS */
         .mac-menubar {
             background: rgba(30, 30, 30, 0.75);
             backdrop-filter: blur(20px);
@@ -44,7 +44,7 @@
         .menu-left { display: flex; gap: 16px; font-weight: 600; }
         .menu-right { color: #27c93f; font-size: 12px; font-weight: bold; }
 
-        /* Системное окно macOS */
+        /* Окно macOS */
         .mac-window {
             background: var(--mac-bg);
             border: 1px solid var(--mac-border);
@@ -61,7 +61,7 @@
             z-index: 10;
         }
 
-        /* Адаптивная шапка окна, защищенная от наложения элементов */
+        /* Адаптивный заголовок окна */
         .mac-titlebar {
             background: #262626;
             min-height: 44px;
@@ -123,7 +123,7 @@
             white-space: nowrap;
         }
 
-        /* Рабочее пространство холста */
+        /* Контентная зона */
         .window-content {
             flex: 1;
             background: #111411;
@@ -142,7 +142,7 @@
             transform-origin: 0 0;
         }
 
-        /* Док-панель инструментов Touchbar-style */
+        /* Нижний Док инструментов */
         .mac-dock {
             background: rgba(28, 28, 30, 0.6);
             backdrop-filter: blur(30px);
@@ -194,10 +194,9 @@
         
         #leaderMapUrl {
             width: 200px;
-            display: none; /* Скрыто для зрителей */
+            display: none;
         }
 
-        /* Адаптивность для мобильных экранов */
         @media (max-width: 480px) {
             .mac-titlebar {
                 flex-direction: column;
@@ -260,7 +259,7 @@
         <button id="saveBtn" class="dock-item" style="background:#227035; border-color:#308c43;">💾 Скачать</button>
     </div>
     <script>
-        // --- 100% ПРАВИЛЬНЫЙ И ПОЛНЫЙ КОНФИГУРАЦИОННЫЙ БЛОК FIREBASE ---
+        // --- СТОПРОЦЕНТНО ПОЛНЫЙ И КОРРЕКТНЫЙ КОНФИГУРАЦИОННЫЙ БЛОК FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyAlpgpurJx8dEwBDWpkXSIjUYaUh-r7xNE",
             authDomain: "://firebaseapp.com",
@@ -272,7 +271,7 @@
             measurementId: "G-76KVGNN87L"
         };
         
-        // Старт базы данных с защитой от вылета страницы
+        // Безопасный запуск базы данных с защитой от бесконечной загрузки
         let db = null;
         try {
             firebase.initializeApp(firebaseConfig);
@@ -307,9 +306,9 @@
         let appMode = 'draw'; let isEraser = false;
         let isDrawing = false; let isPanning = false;
         let startX = 0, startY = 0; let lastDrawX = 0, lastDrawY = 0; let touchStartDist = 0;
-        let drawnLines = [];
+        let drawnLines =;
 
-        // Вход для лидера (Пароль: lidakyeldak)
+        // Вход для лидера по новому паролю: lidakyeldak
         loginBtn.addEventListener('click', () => {
             const pass = leaderPass.value.trim();
             
@@ -368,7 +367,7 @@
             // Потоковый прием векторов рисования лидера из базы
             db.ref('clan_canvas_lines').on('value', (snapshot) => {
                 const data = snapshot.val();
-                drawnLines = [];
+                drawnLines =;
                 if (data) {
                     Object.keys(data).forEach(key => {
                         drawnLines.push(data[key]);
@@ -388,8 +387,8 @@
             } else if (e.touches.length === 2) {
                 isDrawing = false;
                 isPanning = true;
-                const p1 = e.touches[0];
-                const p2 = e.touches[1];
+                const p1 = e.touches;
+                const p2 = e.touches;
                 const midX = (p1.clientX + p2.clientX) / 2;
                 const midY = (p1.clientY + p2.clientY) / 2;
                 startX = midX - offsetX;
@@ -397,8 +396,8 @@
                 touchStartDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
             } else if (appMode === 'pan' && e.touches.length === 1) {
                 isPanning = true;
-                startX = e.touches[0].clientX - offsetX;
-                startY = e.touches[0].clientY - offsetY;
+                startX = e.touches.clientX - offsetX;
+                startY = e.touches.clientY - offsetY;
             }
         }, { passive: true });
         viewport.addEventListener('touchmove', (e) => {
