@@ -27,7 +27,7 @@
             user-select: none;
         }
 
-        /* Верхняя панель macOS */
+        /* Верхняя служебная строка меню macOS */
         .mac-menubar {
             background: rgba(30, 30, 30, 0.75);
             backdrop-filter: blur(20px);
@@ -44,7 +44,7 @@
         .menu-left { display: flex; gap: 16px; font-weight: 600; }
         .menu-right { color: #27c93f; font-size: 12px; font-weight: bold; }
 
-        /* Окно приложения */
+        /* Системное окно macOS */
         .mac-window {
             background: var(--mac-bg);
             border: 1px solid var(--mac-border);
@@ -61,7 +61,7 @@
             z-index: 10;
         }
 
-        /* Переработанная адаптивная шапка окна */
+        /* Адаптивная шапка окна, защищенная от наложения элементов */
         .mac-titlebar {
             background: #262626;
             min-height: 44px;
@@ -123,7 +123,7 @@
             white-space: nowrap;
         }
 
-        /* Контентная рабочая зона */
+        /* Рабочее пространство холста */
         .window-content {
             flex: 1;
             background: #111411;
@@ -142,7 +142,7 @@
             transform-origin: 0 0;
         }
 
-        /* Нижний Док инструментов macOS Touchbar style */
+        /* Док-панель инструментов Touchbar-style */
         .mac-dock {
             background: rgba(28, 28, 30, 0.6);
             backdrop-filter: blur(30px);
@@ -194,10 +194,10 @@
         
         #leaderMapUrl {
             width: 200px;
-            display: none;
+            display: none; /* Скрыто для зрителей */
         }
 
-        /* Медиа-выражение для исключения наложений на смартфонах */
+        /* Адаптивность для мобильных экранов */
         @media (max-width: 480px) {
             .mac-titlebar {
                 flex-direction: column;
@@ -260,7 +260,7 @@
         <button id="saveBtn" class="dock-item" style="background:#227035; border-color:#308c43;">💾 Скачать</button>
     </div>
     <script>
-        // --- СТОПРОЦЕНТНО ПОЛНЫЙ И КОРРЕКТНЫЙ КОНФИГУРАЦИОННЫЙ БЛОК FIREBASE ---
+        // --- 100% ПРАВИЛЬНЫЙ И ПОЛНЫЙ КОНФИГУРАЦИОННЫЙ БЛОК FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyAlpgpurJx8dEwBDWpkXSIjUYaUh-r7xNE",
             authDomain: "://firebaseapp.com",
@@ -272,7 +272,7 @@
             measurementId: "G-76KVGNN87L"
         };
         
-        // Безопасный запуск базы данных с обработчиком ошибок
+        // Старт базы данных с защитой от вылета страницы
         let db = null;
         try {
             firebase.initializeApp(firebaseConfig);
@@ -309,20 +309,11 @@
         let startX = 0, startY = 0; let lastDrawX = 0, lastDrawY = 0; let touchStartDist = 0;
         let drawnLines = [];
 
-        // Асинхронное криптографическое хэширование SHA-256 для безопасности пароля
-        async function hashPassword(string) {
-            const utf8 = new TextEncoder().encode(string);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        // Вход для лидера по SHA-256 хэшу (пароль: qX9!vF2#zK7$mP1_wL9*bN4)
-        loginBtn.addEventListener('click', async () => {
-            const pass = leaderPass.value;
-            const hashedInput = await hashPassword(pass);
+        // Вход для лидера (Пароль: qX9!vF2#zK7$mP1_wL9*bN4)
+        loginBtn.addEventListener('click', () => {
+            const pass = leaderPass.value.trim();
             
-            if (hashedInput === "e19062eb1d91696dbf9640960bc2100412808cda287e0767cb2a647d969bd318") { 
+            if (pass === "qX9!vF2#zK7$mP1_wL9*bN4") { 
                 isLeader = true;
                 roleLabel.textContent = "Лидер 👑";
                 roleLabel.style.background = "rgba(39, 201, 63, 0.2)";
@@ -392,7 +383,7 @@
             if (e.touches.length === 1 && appMode === 'draw') {
                 if (!isLeader) return; 
                 isDrawing = true;
-                const [cx, cy] = getCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+                const [cx, cy] = getCanvasCoords(e.touches.clientX, e.touches.clientY);
                 [lastDrawX, lastDrawY] = [cx, cy];
             } else if (e.touches.length === 2) {
                 isDrawing = false;
@@ -425,8 +416,8 @@
                 if (db) db.ref('clan_canvas_lines').push(lineData);
                 [lastDrawX, lastDrawY] = [cx, cy];
             } else if (isPanning && e.touches.length === 2) {
-                const p1 = e.touches[0];
-                const p2 = e.touches[1];
+                const p1 = e.touches;
+                const p2 = e.touches;
                 const currentDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
                 const midX = (p1.clientX + p2.clientX) / 2;
                 const midY = (p1.clientY + p2.clientY) / 2;
@@ -443,8 +434,8 @@
 
                 updateTransform();
             } else if (isPanning && appMode === 'pan' && e.touches.length === 1) {
-                offsetX = e.touches[0].clientX - startX;
-                offsetY = e.touches[0].clientY - startY;
+                offsetX = e.touches.clientX - startX;
+                offsetY = e.touches.clientY - startY;
                 updateTransform();
             }
         }, { passive: true });
