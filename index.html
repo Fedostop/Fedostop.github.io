@@ -20,23 +20,24 @@
         .marker-base-red { background: #ff3333; border-color: #ff3333; }
         .marker-a, .marker-b, .marker-c { background: #f0f0f0; color: black; }
 
-        /* Панель управления лидера */
+        /* Компактная панель управления лидера в правом нижнем углу */
         #controls {
-            position: absolute; top: 10px; right: 10px; z-index: 1000;
-            background: rgba(30, 30, 30, 0.95); padding: 15px; border-radius: 8px;
+            position: absolute; bottom: 20px; right: 10px; z-index: 1000;
+            background: rgba(30, 30, 30, 0.85); padding: 10px; border-radius: 8px;
             color: white; font-family: sans-serif; border: 1px solid #444;
-            display: none;
+            display: none; width: 140px; text-align: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-        #controls button { padding: 8px; margin-top: 10px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px; width: 100%; font-weight: bold; }
-        #controls button:hover { background: #c82333; }
+        #controls b { font-size: 14px; }
+        #controls p { font-size: 10px; color: #aaa; margin: 5px 0; line-height: 1.2; }
+        #controls button { padding: 6px; cursor: pointer; background: #dc3545; color: white; border: none; border-radius: 4px; width: 100%; font-weight: bold; font-size: 12px; margin-top: 5px; }
         
-        /* Кнопка входа */
+        /* Кнопка входа по центру сверху */
         #loginBtn {
-            position: absolute; top: 10px; left: 50px; z-index: 1000;
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;
             background: #28a745; color: white; border: none; padding: 10px 15px;
             border-radius: 5px; font-weight: bold; cursor: pointer; font-family: sans-serif;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5); white-space: nowrap;
         }
         #loginBtn:hover { background: #218838; }
     </style>
@@ -48,7 +49,7 @@
 
     <div id="controls">
         <b>Режим Лидера</b>
-        <p style="font-size: 12px; color: #aaa; margin: 5px 0;">Используйте инструменты рисования на карте слева.</p>
+        <p>Рисуйте инструментами слева</p>
         <button id="clearBtn">Очистить всё</button>
     </div>
 
@@ -62,24 +63,29 @@
         // === 1. НАСТРОЙКА КАРТЫ ===
         var imgWidth = 784;
         var imgHeight = 586;
+        
+        // Границы карты
         var bounds = [[0, 0], [imgHeight, imgWidth]];
 
-        // Отступы для maxBounds (чтобы не было черных полос)
-        var padding = 50; 
+        // Ограничитель прокрутки. 
+        // Делаем его чуть больше картинки, чтобы можно было зумить не прилипая к краям.
         var maxBounds = [
-            [-padding, -padding], 
-            [imgHeight + padding, imgWidth + padding]
+            [-100, -100], 
+            [imgHeight + 100, imgWidth + 100]
         ];
 
         var map = L.map('map', { 
             crs: L.CRS.Simple, 
             minZoom: -1, 
             maxZoom: 3,
-            maxBounds: maxBounds,        // ЗАПРЕТ ПРОКРУТКИ ЗА КРАЯ
-            maxBoundsViscosity: 1.0,     // ЖЕСТКАЯ ГРАНИЦА (карта не выезжает)
-            bounceAtZoomLimits: false
+            maxBounds: maxBounds,        
+            maxBoundsViscosity: 0.8,     
+            zoomControl: false // Убираем стандартный зум, чтобы не мешал
         }).fitBounds(bounds);
         
+        // Добавляем зум в правый нижний угол (под панель лидера)
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
         // Загрузка фоновой картинки
         L.imageOverlay('hvoiny.png', bounds).addTo(map);
 
@@ -87,7 +93,7 @@
         function addMarker(name, xPercent, yPercent, iconClass, popupText) {
             var x = (xPercent / 100) * imgWidth;
             var y = (yPercent / 100) * imgHeight;
-            var latLng = [imgHeight - y, x]; // Инверсия Y
+            var latLng = [imgHeight - y, x]; 
             var icon = L.divIcon({ className: 'custom-marker ' + iconClass, html: name, iconSize: [26, 26], iconAnchor: [13, 13] });
             L.marker(latLng, { icon: icon }).addTo(map).bindPopup(popupText);
         }
@@ -116,12 +122,12 @@
         var db = firebase.database();
         var drawingsRef = db.ref('drawings');
 
-        // Слой для рисунков
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
-        // Настройка панели рисования (появится только у лидера)
+        // Инструменты рисования
         var drawControl = new L.Control.Draw({
+            position: 'topleft',
             edit: { featureGroup: drawnItems },
             draw: {
                 polygon: { shapeOptions: { color: '#ff7800', weight: 3, fillOpacity: 0.3 } },
@@ -134,61 +140,52 @@
 
         // === 3. ЛОГИКА РЕЖИМОВ ===
         var isLeader = false;
-        var myDrawings = {}; // Чтобы не дублировать свои же рисунки
+        var myDrawings = {}; 
 
-        // Вход по коду
         document.getElementById('loginBtn').onclick = function() {
             var code = prompt("Введите секретный код лидера:");
-            if (code === "Хвойный2024") { // <--- ТУТ МОЖНО СМЕНИТЬ КОД
+            if (code === "Хвойный2024") { // <--- КОД ЛИДЕРА
                 isLeader = true;
                 this.style.display = 'none';
                 document.getElementById('controls').style.display = 'block';
-                map.addControl(drawControl); // Включаем инструменты рисования
-                alert("Вы вошли как Лидер. Инструменты рисования слева!");
+                map.addControl(drawControl);
             } else if (code !== null) {
                 alert("Неверный код!");
             }
         };
 
-        // Очистка всего
         document.getElementById('clearBtn').onclick = function() {
             if(confirm("Удалить все рисунки на карте у ВСЕХ участников?")) {
-                drawingsRef.remove(); // Удаляем всё из базы
+                drawingsRef.remove(); 
             }
         };
 
 
         // === 4. СИНХРОНИЗАЦИЯ С FIREBASE ===
         
-        // Когда Лидер заканчивает рисовать фигуру
         map.on(L.Draw.Event.CREATED, function (e) {
             var layer = e.layer;
             var id = Date.now().toString(); 
             var geojson = layer.toGeoJSON();
             
-            // Сохраняем в базу
             drawingsRef.child(id).set({
                 type: geojson.geometry.type,
                 coords: geojson.geometry.coordinates,
                 color: layer.options.color || '#ffffff'
             });
             
-            // Рисуем у себя сразу
             drawnItems.addLayer(layer);
         });
 
-        // Слушаем добавление новых фигур (для всех участников)
         drawingsRef.on('child_added', function(snapshot) {
             var data = snapshot.val();
-            
-            // Если мы уже нарисовали это (мы лидер), пропускаем
             if (myDrawings[snapshot.key]) return;
 
             var latlngs = [];
             if (data.type === 'Polygon' || data.type === 'LineString') {
                 var coords = data.type === 'Polygon' ? data.coords[0] : data.coords;
                 coords.forEach(function(coord) {
-                    latlngs.push([coord[1], coord[0]]); // Конвертация Y/X
+                    latlngs.push([coord[1], coord[0]]); 
                 });
 
                 if (data.type === 'Polygon') {
@@ -199,7 +196,6 @@
             }
         });
 
-        // Слушаем очистку (если лидер удалил всё)
         drawingsRef.on('value', function(snapshot) {
             if (!snapshot.exists()) {
                 drawnItems.clearLayers();
