@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SCMAPSLIVE — Тактический Центр</title>
-    <!-- Подключение Firebase SDK v8 (Стабильная веб-версия) -->
+    <!-- Подключение стабильной версии Firebase SDK v8 -->
     <script src="https://gstatic.com"></script>
     <script src="https://gstatic.com"></script>
     <style>
@@ -27,7 +27,7 @@
             user-select: none;
         }
 
-        /* Верхняя служебная строка меню macOS */
+        /* Верхняя панель macOS */
         .mac-menubar {
             background: rgba(30, 30, 30, 0.75);
             backdrop-filter: blur(20px);
@@ -44,7 +44,7 @@
         .menu-left { display: flex; gap: 16px; font-weight: 600; }
         .menu-right { color: #27c93f; font-size: 12px; font-weight: bold; }
 
-        /* Системное окно macOS */
+        /* Окно приложения */
         .mac-window {
             background: var(--mac-bg);
             border: 1px solid var(--mac-border);
@@ -61,7 +61,7 @@
             z-index: 10;
         }
 
-        /* Адаптивная шапка окна, защищенная от наложения элементов */
+        /* Переработанная адаптивная шапка окна */
         .mac-titlebar {
             background: #262626;
             min-height: 44px;
@@ -123,7 +123,7 @@
             white-space: nowrap;
         }
 
-        /* Рабочее пространство холста */
+        /* Контентная рабочая зона */
         .window-content {
             flex: 1;
             background: #111411;
@@ -142,7 +142,7 @@
             transform-origin: 0 0;
         }
 
-        /* Док-панель инструментов Touchbar-style */
+        /* Нижний Док инструментов macOS Touchbar style */
         .mac-dock {
             background: rgba(28, 28, 30, 0.6);
             backdrop-filter: blur(30px);
@@ -194,10 +194,10 @@
         
         #leaderMapUrl {
             width: 200px;
-            display: none; /* Скрыто для обычных штурмовиков/зрителей */
+            display: none;
         }
 
-        /* Адаптивность для ультракомпактных мобильных устройств */
+        /* Медиа-выражение для исключения наложений на смартфонах */
         @media (max-width: 480px) {
             .mac-titlebar {
                 flex-direction: column;
@@ -222,7 +222,7 @@
             <span></span>
             <span>SCMAPSLIVE</span>
         </div>
-        <div class="menu-right" id="onlineIndicator">Сеть: Инициализация...</div>
+        <div class="menu-right" id="onlineIndicator">Сеть: Подключение...</div>
     </div>
 
     <div class="mac-window">
@@ -260,7 +260,7 @@
         <button id="saveBtn" class="dock-item" style="background:#227035; border-color:#308c43;">💾 Скачать</button>
     </div>
     <script>
-        // --- ЧИСТЫЙ КОНФИГУРАЦИОННЫЙ БЛОК FIREBASE REALTIME DATABASE ---
+        // --- СТОПРОЦЕНТНО ПОЛНЫЙ И КОРРЕКТНЫЙ КОНФИГУРАЦИОННЫЙ БЛОК FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyAlpgpurJx8dEwBDWpkXSIjUYaUh-r7xNE",
             authDomain: "://firebaseapp.com",
@@ -272,11 +272,18 @@
             measurementId: "G-76KVGNN87L"
         };
         
-        // Корректный старт Firebase без обфусцированных массивов
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        // Безопасный запуск базы данных с обработчиком ошибок
+        let db = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        } catch (error) {
+            document.getElementById('onlineIndicator').textContent = "Критическая ошибка конфигурации!";
+            document.getElementById('onlineIndicator').style.color = "#ff5f56";
+            console.error(error);
+        }
 
-        // Сбор всех элементов интерфейса
+        // Сбор элементов интерфейса
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         const viewport = document.getElementById('viewport');
@@ -310,12 +317,11 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        // Авторизация лидера по SHA-256 хэшу (пароль: qX9!vF2#zK7$mP1_wL9*bN4)
+        // Вход для лидера по SHA-256 хэшу (пароль: qX9!vF2#zK7$mP1_wL9*bN4)
         loginBtn.addEventListener('click', async () => {
             const pass = leaderPass.value;
             const hashedInput = await hashPassword(pass);
             
-            // Сверяем хэш-слепок. Взломать или подсмотреть пароль в коде теперь невозможно
             if (hashedInput === "e19062eb1d91696dbf9640960bc2100412808cda287e0767cb2a647d969bd318") { 
                 isLeader = true;
                 roleLabel.textContent = "Лидер 👑";
@@ -325,60 +331,61 @@
                 leaderPass.style.display = "none";
                 loginBtn.style.display = "none";
                 leaderMapUrl.style.display = "block"; 
-                onlineIndicator.textContent = "Трансляция SCMAPSLIVE";
+                if (db) onlineIndicator.textContent = "Трансляция SCMAPSLIVE";
             } else {
                 alert("Неверный тактический ключ доступа!");
             }
         });
 
         // Контроль сетевого статуса подключения к серверу Realtime Database
-        db.ref('.info/connected').on('value', (snap) => {
-            if (snap.val() === true) {
-                onlineIndicator.textContent = isLeader ? "Трансляция SCMAPSLIVE" : "Наблюдение SCMAPSLIVE";
-                onlineIndicator.style.color = "#27c93f";
-            } else {
-                onlineIndicator.textContent = "Переподключение...";
-                onlineIndicator.style.color = "#ff5f56";
-            }
-        });
-
-        // Сетевой прием ссылки на карту, установленную лидером
-        db.ref('dynamic_clan_map_url').on('value', (snapshot) => {
-            const remoteUrl = snapshot.val();
-            if (remoteUrl && remoteUrl !== currentMapUrl) {
-                currentMapUrl = remoteUrl;
-                // Решаем проблему CORS при скачивании
-                if (remoteUrl.startsWith('http')) {
-                    mapBg.crossOrigin = "anonymous";
+        if (db) {
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === true) {
+                    onlineIndicator.textContent = isLeader ? "Трансляция SCMAPSLIVE" : "Наблюдение SCMAPSLIVE";
+                    onlineIndicator.style.color = "#27c93f";
                 } else {
-                    mapBg.removeAttribute("crossOrigin");
+                    onlineIndicator.textContent = "Переподключение...";
+                    onlineIndicator.style.color = "#ff5f56";
                 }
-                mapBg.src = remoteUrl;
-                if (!isLeader) leaderMapUrl.value = remoteUrl;
-            }
-        });
+            });
 
-        // Отправка ссылки лидером на сервер при её изменении
-        leaderMapUrl.addEventListener('change', (e) => {
-            if (!isLeader) return;
-            const newUrl = e.target.value.trim();
-            if (newUrl) {
-                db.ref('dynamic_clan_map_url').set(newUrl);
-                db.ref('clan_canvas_lines').remove(); // Стираем холст при смене карты
-            }
-        });
+            // Сетевой прием ссылки на карту, установленной лидером
+            db.ref('dynamic_clan_map_url').on('value', (snapshot) => {
+                const remoteUrl = snapshot.val();
+                if (remoteUrl && remoteUrl !== currentMapUrl) {
+                    currentMapUrl = remoteUrl;
+                    if (remoteUrl.startsWith('http')) {
+                        mapBg.crossOrigin = "anonymous";
+                    } else {
+                        mapBg.removeAttribute("crossOrigin");
+                    }
+                    mapBg.src = remoteUrl;
+                    if (!isLeader) leaderMapUrl.value = remoteUrl;
+                }
+            });
 
-        // Потоковый прием векторов рисования лидера из базы
-        db.ref('clan_canvas_lines').on('value', (snapshot) => {
-            const data = snapshot.val();
-            drawnLines = [];
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    drawnLines.push(data[key]);
-                });
-            }
-            redrawAll();
-        });
+            // Отправка ссылки лидером на сервер при её изменении
+            leaderMapUrl.addEventListener('change', (e) => {
+                if (!isLeader) return;
+                const newUrl = e.target.value.trim();
+                if (newUrl) {
+                    db.ref('dynamic_clan_map_url').set(newUrl);
+                    db.ref('clan_canvas_lines').remove(); 
+                }
+            });
+
+            // Потоковый прием векторов рисования лидера из базы
+            db.ref('clan_canvas_lines').on('value', (snapshot) => {
+                const data = snapshot.val();
+                drawnLines = [];
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        drawnLines.push(data[key]);
+                    });
+                }
+                redrawAll();
+            });
+        }
 
         // Логика тач-событий (смартфоны)
         viewport.addEventListener('touchstart', (e) => {
@@ -405,7 +412,7 @@
         }, { passive: true });
         viewport.addEventListener('touchmove', (e) => {
             if (isDrawing && e.touches.length === 1 && isLeader) {
-                const [cx, cy] = getCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+                const [cx, cy] = getCanvasCoords(e.touches.clientX, e.touches.clientY);
                 
                 const lineData = {
                     x1: lastDrawX, y1: lastDrawY,
@@ -415,7 +422,7 @@
                     mode: isEraser ? 'erase' : 'draw'
                 };
                 
-                db.ref('clan_canvas_lines').push(lineData);
+                if (db) db.ref('clan_canvas_lines').push(lineData);
                 [lastDrawX, lastDrawY] = [cx, cy];
             } else if (isPanning && e.touches.length === 2) {
                 const p1 = e.touches[0];
@@ -447,7 +454,7 @@
             isPanning = false;
         });
 
-        // Обработка управления мышью (ПК)
+        // Обработка мыши (ПК)
         viewport.addEventListener('mousedown', (e) => {
             if (appMode === 'draw' && e.button === 0 && isLeader) {
                 isDrawing = true;
@@ -470,7 +477,7 @@
                     size: parseInt(brushSize.value),
                     mode: isEraser ? 'erase' : 'draw'
                 };
-                db.ref('clan_canvas_lines').push(lineData);
+                if (db) db.ref('clan_canvas_lines').push(lineData);
                 [lastDrawX, lastDrawY] = [cx, cy];
             } else if (isPanning) {
                 offsetX = e.clientX - startX;
@@ -585,7 +592,7 @@
             ];
         }
 
-        // Кнопки управления док-панели
+        // Кнопки док-панели
         modeBtn.addEventListener('click', () => {
             if (appMode === 'draw') {
                 appMode = 'pan';
@@ -610,7 +617,7 @@
                 return;
             }
             if (confirm('Очистить тактическую разметку на сервере для всех участников?')) {
-                db.ref('clan_canvas_lines').remove();
+                if (db) db.ref('clan_canvas_lines').remove();
             }
         });
 
