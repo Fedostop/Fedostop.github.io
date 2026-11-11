@@ -73,9 +73,17 @@
     @media(max-width:800px){.hero-photo img{border-radius:150px 150px 24px 24px}.story{border-radius:24px}}
     @media(max-width:520px){.menu-card{border-radius:18px}.photo-note{border-radius:16px}}
 
+
+    /* Animated coffee-toned atmosphere with a single interactive water ripple */
+    .ambient-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.9}
+    body>*:not(.ambient-canvas){position:relative;z-index:1}
+    body:before{z-index:0;opacity:.65}
+    @media(prefers-reduced-motion:reduce){.ambient-canvas{display:none}}
+
   </style>
 </head>
 <body>
+  <canvas class="ambient-canvas" aria-hidden="true"></canvas>
   <div class="scroll-progress" aria-hidden="true"></div>
   <div class="ambient-glow glow-one" aria-hidden="true"></div><div class="ambient-glow glow-two" aria-hidden="true"></div>
   <header class="wrap topbar"><a class="brand" href="#" aria-label="EMBER COFFEE — на главную"><span class="brand-mark">e</span> EMBER COFFEE</a><nav aria-label="Главная навигация"><a href="#menu">Меню</a><a href="#story">О нас</a><a href="#visit">Контакты</a></nav><a class="nav-cta" href="#visit">Найти нас ↗</a></header>
@@ -95,6 +103,71 @@
   </main>
   <footer><div class="wrap footer-inner"><a class="brand" href="#"><span class="brand-mark">e</span> EMBER COFFEE</a><span>© 2026 EMBER COFFEE. Сделано с теплом.</span><span>Кофе · Люди · Атмосфера</span></div></footer>
   <script>
+
+
+    (() => {
+      const canvas=document.querySelector('.ambient-canvas');
+      const ctx=canvas?.getContext('2d',{alpha:true});
+      if(!canvas||!ctx||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+      let w=0,h=0,dpr=1,frame=0;
+      const ripple={x:-1000,y:-1000,start:0,power:0};
+      const finePointer=matchMedia('(pointer:fine)').matches;
+      const resize=()=>{
+        dpr=Math.min(devicePixelRatio||1,2);w=innerWidth;h=innerHeight;
+        canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+        canvas.style.width=w+'px';canvas.style.height=h+'px';
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+      };
+      resize();addEventListener('resize',resize,{passive:true});
+      if(finePointer){
+        addEventListener('pointermove',e=>{
+          ripple.x=e.clientX;ripple.y=e.clientY;ripple.start=performance.now();ripple.power=1;
+        },{passive:true});
+      }
+      const draw=(now)=>{
+        ctx.clearRect(0,0,w,h);
+        const t=now*.00012;
+        ctx.save();ctx.globalCompositeOperation='screen';
+        const glow=(x,y,r,a)=>{
+          const g=ctx.createRadialGradient(x,y,0,x,y,r);
+          g.addColorStop(0,'rgba(194,119,65,'+a+')');
+          g.addColorStop(.45,'rgba(126,76,43,'+(a*.34)+')');
+          g.addColorStop(1,'rgba(126,76,43,0)');
+          ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);
+        };
+        glow(w*(.22+.035*Math.sin(t*2)),h*(.25+.04*Math.cos(t*1.5)),Math.max(w,h)*.48,.12);
+        glow(w*(.82+.035*Math.cos(t*1.3)),h*(.72+.035*Math.sin(t*1.7)),Math.max(w,h)*.42,.09);
+        const age=(now-ripple.start)/1900;
+        if(ripple.power>0&&age>=0&&age<1.15){
+          const progress=age/1.15,fade=Math.pow(1-progress,1.7),base=progress*390;
+          for(let ring=0;ring<4;ring++){
+            const radius=Math.max(1,base-ring*13);
+            if(radius<5)continue;
+            ctx.beginPath();
+            for(let a=0;a<=Math.PI*2+.04;a+=.035){
+              const wobble=Math.sin(a*5+ring*.8+progress*8)*1.7+Math.sin(a*9-progress*11)*.8;
+              const rr=radius+wobble;
+              const x=ripple.x+Math.cos(a)*rr,y=ripple.y+Math.sin(a)*rr*.72;
+              if(a===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+            }
+            const alpha=fade*(.18-ring*.032);
+            ctx.strokeStyle='rgba(237,174,116,'+alpha+')';
+            ctx.lineWidth=ring===0?1.35:.8;
+            ctx.shadowColor='rgba(226,151,91,'+(alpha*.7)+')';ctx.shadowBlur=10;
+            ctx.stroke();
+          }
+          const sheen=ctx.createRadialGradient(ripple.x,ripple.y,base*.12,ripple.x,ripple.y,base*.95);
+          sheen.addColorStop(0,'rgba(226,153,99,0)');
+          sheen.addColorStop(.78,'rgba(226,153,99,0)');
+          sheen.addColorStop(1,'rgba(226,153,99,'+(fade*.035)+')');
+          ctx.fillStyle=sheen;ctx.fillRect(ripple.x-base,ripple.y-base,ripple.x*0+base*2,base*2);
+        }
+        ctx.restore();
+        frame=requestAnimationFrame(draw);
+      };
+      frame=requestAnimationFrame(draw);
+      addEventListener('pagehide',()=>cancelAnimationFrame(frame),{once:true});
+    })();
 
     const progress=document.querySelector('.scroll-progress');
     const updateProgress=()=>{const max=document.documentElement.scrollHeight-innerHeight;progress.style.width=(max>0?scrollY/max*100:0)+'%'};
