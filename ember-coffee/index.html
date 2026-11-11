@@ -76,7 +76,7 @@
 
     /* Animated coffee-toned atmosphere with a single interactive water ripple */
     .ambient-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.9}
-    body>*:not(.ambient-canvas){position:relative;z-index:1}
+    body>*:not(.ambient-canvas):not(.scroll-progress):not(.ambient-glow){position:relative;z-index:1}
     body:before{z-index:0;opacity:.65}
     @media(prefers-reduced-motion:reduce){.ambient-canvas{display:none}}
 
